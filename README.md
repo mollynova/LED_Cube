@@ -1,0 +1,114 @@
+Raspberry Pi Raver Cube
+Author: Molly Novash
+
+OVERVIEW:
+
+Raspberry Pi B+ Raver Cube
+
+For my project, I'm building a 4x4x4 LED cube with gradient colors. Each layer of the cube will have 4 sets of 4 LED 
+lights soldered together. Each set will be uniquely addressable (16 unique addresses). The cube will be connected via 
+ribbon cable to raspberry pi B+ GPIO pins. 
+
+The raspberry pi will be running software which takes a wav file as input and transforms it into a vector of samples. 
+This vector of samples will be subdivided into a vector of vectors of samples, each of which has approximately one second
+of music's worth of samples, based on the length of the song.
+
+I use RustFFT to perform a fast fourier transform (FFT) on each chunk of samples, deconstructing the sine wave into the 
+individual tones it is comprised of. I select the highest of these tones, and turn on the appropriate colored lights on
+the cube. Lowest tones are red, low-middle are yellow, middle-high are green, and high are blue. 
+
+----------
+SOFTWARE:
+
+Typically, frequencies in music fall in the range of 30Hz ~ 3500Hz. This would be the low end of bass versus
+the higher end of a violin. I have 4 colors in my LED cube, Red Blue Green Yellow. Thus, I've divided this 
+approximate range of frequencies into four equal quadrants and assigned each a color.
+
+As stated in the overview, I use the 'hound' crate to parse a .wav file into a vector of samples. Each sample
+is essentially a sine wave representing the particular frequency of the sample (tone). I read approxiately
+one sample per second while the song plays and apply the Goertzel algorithm to it for a number of target
+frequencies. The Goertzel algorithm essentially returns a numeric value representing the magnitude, or likelihood that the
+given sample is the target frequency. The higher the number it returns, the higher the likelihood. So for each
+sample I test, I will apply the Goertzel algorithm to it for 4 different target frequencies. These frequencies 
+will be the dead center of each "color quadrant" in my frequency range. Whichever of the 4 returns the highest
+magnitude is the frequency that that particular sample is closest to, so I light up the color LEDs associated
+with that quadrant.
+
+Computing color ranges: 3500 - 30 = 3470  # total estimated frequency range is 3470Hz
+                        3470 / 4 ~= 867   # with 4 colors, each quadrant will be about 867Hz
+                        867 / 2 ~= 434    # from the edge of one quadrant to the center of the next, which will be our
+                                          # target frequency, is about 434Hz
+                        
+                        434 + 30 = 464    # 434 plus the offset from our range is the first quadrant target frequency
+                        464 + 867 = 1331. # to the center of the next quadrant is the second quadrant target frequency
+                        1331 + 867 = 2198 # the third target frequency
+                        2198 + 867 = 3065 # the fourth target frequency
+
+Target frequencies:
+  Red:    464 Hz
+  Yellow: 1331 Hz
+  Green:  2198 Hz
+  Blue:   3065 Hz 
+
+           
+          RED                   YELLOW                       GREEN                      BLUE
+|30---Target:434---867||868---Target:1331---1765||1766---Target:2198---2732||2733---Target:3065---3500|
+
+When implementing the Goertzel algorithm, I use a sample rate of 44100Hz, which is standard for most music files. 
+Because I'm only reading one sample per second, this isn't particularly important. There could be hundreds of thousands
+of samples in a song, so neither the hardware nor my eyes could keep up if I tried to have it display them all.
+
+NOTE: I will likely want to add more variety to my display patterns once I've finished soldering the hardware. My plan is to
+create 3 more target frequencies that I'm testing for, which lie in between the initial 4. If a frequency is closer to the
+intersection of red and yellow than it is to either red or yellow, I'll probably have it light up both red and yellow lights,
+and do the same for yellow/green and green/blue. I might have the red lights start lighting from bottom to top and the yellow
+light from top down simultaneously and see what kind of an effect I can get.
+
+----------
+HARDWARE:
+
+Layout of the cube:
+
+  -4x4x4 LEDs soldered together, which can be thought of as four 4x4 flat planes of LEDs. 
+   The bottom layer is "layer 1" and the top is "layer 4"
+   
+   The layers are laid out as follows, where R = red, Y = yellow, G = green, B = blue:
+   
+   Layer 1      Layer 2      Layer 3      Layer 4
+   
+   B G Y R      G B R Y      Y R B G      R Y G B
+   G B R Y      B G Y R      R Y G B      Y R B G
+   Y R B G      R Y G B      B G Y R      G B R Y
+   R Y G B      Y R B G      G B R Y      B G Y R
+   
+   For each layer, like colors are all connected together (along with transistors, resistors, and a 12V 3A power supply)
+   Each layer has 4 lights of each color
+   Each grouping of 4 connected lights per layer is uniquely addressable
+   So, this will take 16 GPIO pins. 4 pins will be associated with each color, one for each layer of the cube, and toggled 
+   with the rppal crate for accessing GPIO pins in Rust. 
+   
+   I'm using a 12V 3A external power supply for this project. Red Green and Yellow lights are getting 10V of power and blue
+   lights are getting 12V.
+   
+---------------
+TESTING:
+
+For the first part of my testing, I'm just making sure the Goertzel algorithm is working properly. I used "audiocheck.net" to
+generate and download 1-second-long .wav files at 400Hz, 1400Hz, 2200Hz, and 3000Hz. The first should trigger the "turn on
+red lights" condition, the second should trigger the yellow lights, third green, and fourth blue.
+
+My next test, once I knew the algorithm was working properly, was to make sure my rppal code was working as well. I did this in
+the breadboard stage of hardware development. I attached my external power supply to power and ground on my breadboard. Then, I
+connected the middle transistor pin on a single row of lights to a GPIO pin on my raspberry pi. I wrote a simple tester function
+that would use rppal syntax to set that particular GPIO pin to "output" mode, and turn on the lights. 
+
+Once I'd gotten the algorithm working and the lights triggering correctly, everything else was basically just repetition. 
+
+---------------
+Works sampled / some lines of code pulled from:
+
+https://rickyhan.com/jekyll/update/2018/02/06/rust-guitar-pedal-effects-dsp.html
+http://siciarz.net/24-days-rust-hound/
+
+---------------
+Special thanks to Christopher Clark and the EPL for their help with the hardware end of this project.

@@ -1,0 +1,11 @@
+[package]
+name = "RaverCube"
+version = "0.1.0"
+authors = ["novash"]
+edition = "2018"
+
+[dependencies]
+hound = { path = "crates/hound" }
+rppal = { version = "0.11.2", path = "crates/rppal" }
+rustfft = { version = "3.0.0", path = "crates/RustFFT" }
+num = { version = "0.2", path = "crates/num" }

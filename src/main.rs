@@ -6,13 +6,11 @@ use hound;
 use std::thread;
 use std::time::Duration;
 
-//use rppal::gpio::{Gpio, Mode, Level};
 use rppal::gpio::Gpio;
 use std::error::Error;
 use num::complex::Complex;
 use rustfft::FFT;
 use self::rustfft::FFTplanner;
-//use self::rustfft::num_complex::Complex;
 use self::rustfft::num_traits::Zero;
 
 // a test to make sure rppal is working properly
@@ -33,36 +31,57 @@ fn test_rppal() -> Result <(), Box<dyn Error>> {
   Ok(())
 }
 
-// set GPIO pins values for each color as global constants
-// note that "gpio" from rppal uses BCM pin numbering
+fn main() {
+  // initialize hardware
+  init_hardware();
 
-let r1_GPIO: u8 = 2;
-let r2_GPIO: u8 = 3;
-let r3_GPIO: u8 = 4;
-let r4_GPIO: u8 = 17;
+  // use 'hound' crate to read in a given .wav file
+  let mut reader = hound::WavReader::open("wav_files/ImIntoYou.wav").unwrap();
 
-let y1_GPIO: u8 = 27;
-let y2_GPIO: u8 = 22;
-let y3_GPIO: u8 = 10;
-let y4_GPIO: u8 = 9;
+  // build complex vector of samples in preparation for FFT
+  let samples = reader.samples::<i16>()
+       .map(|x| Complex::new(x.unwrap() as f32, 0f32))
+       .collect::<Vec<_>>();
 
-let g1_GPIO: u8 = 5;
-let g2_GPIO: u8 = 6;
-let g3_GPIO: u8 = 13;
-let g4_GPIO: u8 = 19;
+  // compute the number of samples that there are per second of music for the given wav file
+  let num_samples = samples.len();
+  let seconds            = 270; // say each song is about 4 minutes
+  let samples_per_second = (num_samples / seconds) as usize;
 
-let b1_GPIO: u8 = 12;
-let b2_GPIO: u8 = 16;
-let b3_GPIO: u8 = 20;
-let b4_GPIO: u8 = 21;
+  let chunked_signals: Vec<_> = samples.chunks_exact(samples_per_second).collect();
 
+  for chunk in chunked_signals {
+    let temp_vec = chunk.to_vec();
+    if let Some(peak) = find_peak(temp_vec) {
+      // calculate the range of the peak
+      pick_color(peak);
+    }
+  }
+}
 
-fn main() -> Result <(), Box<dyn Error>> {
-  // define PI const
-  //pub const PI: f64 = 3.14159265358979323846264338327950288f64;
+fn init_hardware() -> Result <(), Box<dyn Error>> {
+  // set GPIO pins values for each color as global constants
+  // note that "gpio" from rppal uses BCM pin numbering
 
-  // sample rate for all wav files that will be used as input
-  //let sample_rate: f64 = 44100.0;
+  let r1_GPIO: u8 = 2;
+  let r2_GPIO: u8 = 3;
+  let r3_GPIO: u8 = 4;
+  let r4_GPIO: u8 = 17;
+
+  let y1_GPIO: u8 = 27;
+  let y2_GPIO: u8 = 22;
+  let y3_GPIO: u8 = 10;
+  let y4_GPIO: u8 = 9;
+
+  let g1_GPIO: u8 = 5;
+  let g2_GPIO: u8 = 6;
+  let g3_GPIO: u8 = 13;
+  let g4_GPIO: u8 = 19;
+
+  let b1_GPIO: u8 = 12;
+  let b2_GPIO: u8 = 16;
+  let b3_GPIO: u8 = 20;
+  let b4_GPIO: u8 = 21;
 
   // declare the 16 GPIO pins and set their modes to "output"
   let mut r1_gpio = Gpio::new()?.get(r1_GPIO)?.into_output();
@@ -85,74 +104,14 @@ fn main() -> Result <(), Box<dyn Error>> {
   let mut b3_gpio = Gpio::new()?.get(b3_GPIO)?.into_output();
   let mut b4_gpio = Gpio::new()?.get(b4_GPIO)?.into_output();
 
-  // use 'hound' crate to read all samples from wav file into a vector as i16 type
-  let mut reader = hound::WavReader::open("wav_files/ImIntoYou.wav").unwrap();
-  let num_samples = reader.len();
-
- // let samples: Vec<_> = reader.samples::<i16>()
-//                        .map(|s| f64::from(s.unwrap()) / f64::from(std::i16::MAX)).collect();
-
-  // compute the number of samples that there are per second of music for the given wav file
- // let arr_length         = samples.len();
-  let seconds            = 270; // say each song is about 4 minutes
-  let samples_per_second = (num_samples / seconds) as usize;
-
-  //let signal = reader.samples::<i16>()
-   //                  .map(|x| Complex::new(x.unwrap() as f32, 0f32))
-   //                  .collect::<Vec<_>>();
-  let samples = reader.samples::<i16>()
-       .map(|x| Complex::new(x.unwrap() as f32, 0f32))
-       .collect::<Vec<_>>();
-
-  //let mut input: Vec<Complex<f32>> = samples.to_vec().iter()
-   //    .map(|&x| Complex::new(x, 0.0));
-
- // let mut output: Vec<Complex<f32>> = vec![Complex::zero(); input.len()];
-
-  let chunked_signals: Vec<_> = samples.chunks_exact(samples_per_second).collect();
-
-  let mut highest: f32 = 0.0;
-  let mut lowest: f32 = 3000.0;
-  let mut temp_high: f32 = 0.0;
-  let mut temp_low: f32 = 0.0;
-
-  for chunk in chunked_signals {
-    let temp_vec = chunk.to_vec();
-    if let Some(peak) = find_peak(temp_vec) {
-      // check the peak and light up your color
-      temp_high = peak;
-      temp_low = peak;
-      if temp_high > highest {
-        highest = temp_high;
-      }
-      if temp_low < lowest && temp_low != 0.0 {
-        lowest = temp_low;
-      }
-      println!("Max frequency: {} Hz", peak);
-
-      // calculate the range of the peak
-      pick_color(peak);
-
-      // turn on the appropriate lights
-    }
-  }
-  println!("Lowest freq: {} Hz", lowest);
-  println!("Highest freq: {} Hz", highest);
-
   Ok(())
 }
 
 fn pick_color(frequency: f32) -> () {
-  // target frequencies
-/*
-  let red_freq: f32 = 30.0;
-  let ry_freq: f32 = 108.3;
-  let yellow_freq: f32 = 186.6;
-  let yg_freq: f32 = 265.0;
-  let green_freq: f32 = 343.2;
-  let gb_freq: f32 = 421.5;
-  let blue_freq: f32 = 500.0;
-*/
+  /*
+    Note: 30 = target red freq, 108.3 = target y/r freq, 186.6 = target yellow freq, 265.0 = target yg freq
+          343.2 = target green freq, 421.5 = target gb freq, 500.0 = target blue freq
+  */
 
   let mut vec = Vec::new();
   vec.push(30.0);
@@ -163,7 +122,7 @@ fn pick_color(frequency: f32) -> () {
   vec.push(421.5);
   vec.push(500.0);
 
-  let mut closeness = 600;
+  let mut closeness: f32 = 600.0;
   let mut count: i32 = 0;
   for x in &vec {
     if (x - frequency).abs() < closeness {
@@ -189,11 +148,6 @@ fn select_light(val: i32) -> () {
 }
 
 fn light_red() {
-  let mut r1_gpio = Gpio::new()?.get(r1_GPIO)?.into_output();
-  let mut r2_gpio = Gpio::new()?.get(r2_GPIO)?.into_output();
-  let mut r3_gpio = Gpio::new()?.get(r3_GPIO)?.into_output();
-  let mut r4_gpio = Gpio::new()?.get(r4_GPIO)?.into_output();
-
   r1_gpio.set_high();
   thread::sleep(Duration::from_millis(250));
   r1_gpio.set_low();
@@ -209,16 +163,6 @@ fn light_red() {
 }
 
 fn light_ry() {
-  let mut r1_gpio = Gpio::new()?.get(r1_GPIO)?.into_output();
-  let mut r2_gpio = Gpio::new()?.get(r2_GPIO)?.into_output();
-  let mut r3_gpio = Gpio::new()?.get(r3_GPIO)?.into_output();
-  let mut r4_gpio = Gpio::new()?.get(r4_GPIO)?.into_output();
-
-  let mut y1_gpio = Gpio::new()?.get(y1_GPIO)?.into_output();
-  let mut y2_gpio = Gpio::new()?.get(y2_GPIO)?.into_output();
-  let mut y3_gpio = Gpio::new()?.get(y3_GPIO)?.into_output();
-  let mut y4_gpio = Gpio::new()?.get(y4_GPIO)?.into_output();
-
   r1_gpio.set_high();
   y4_gpio.set_high();
   thread::sleep(Duration::from_millis(250));
@@ -246,11 +190,6 @@ fn light_ry() {
 }
 
 fn light_yellow() {
-  let mut y1_gpio = Gpio::new()?.get(y1_GPIO)?.into_output();
-  let mut y2_gpio = Gpio::new()?.get(y2_GPIO)?.into_output();
-  let mut y3_gpio = Gpio::new()?.get(y3_GPIO)?.into_output();
-  let mut y4_gpio = Gpio::new()?.get(y4_GPIO)?.into_output();
-
   y1_gpio.set_high();
   thread::sleep(Duration::from_millis(250));
   y1_gpio.set_low();
@@ -267,11 +206,6 @@ fn light_yellow() {
 }
 
 fn light_yg() {
-  let mut y1_gpio = Gpio::new()?.get(y1_GPIO)?.into_output();
-  let mut y2_gpio = Gpio::new()?.get(y2_GPIO)?.into_output();
-  let mut y3_gpio = Gpio::new()?.get(y3_GPIO)?.into_output();
-  let mut y4_gpio = Gpio::new()?.get(y4_GPIO)?.into_output();
-
   y1_gpio.set_high();
   y4_gpio.set_high();
   thread::sleep(Duration::from_millis(250));

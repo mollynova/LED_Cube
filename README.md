@@ -58,10 +58,10 @@ Layout of the cube:
 
    Layer 1      Layer 2      Layer 3      Layer 4
 
-   B G Y R      G B R Y      Y R B G      R Y G B
-   G B R Y      B G Y R      R Y G B      Y R B G
-   Y R B G      R Y G B      B G Y R      G B R Y
-   R Y G B      Y R B G      G B R Y      B G Y R
+   B G Y R      G B R Y      Y R B G      R Y G B  
+   G B R Y      B G Y R      R Y G B      Y R B G  
+   Y R B G      R Y G B      B G Y R      G B R Y  
+   R Y G B      Y R B G      G B R Y      B G Y R  
 
    For each layer, like colors are all connected together (along with transistors, resistors, and a 12V 3A power supply)
    Each layer has 4 lights of each color
@@ -124,8 +124,8 @@ lot of the concepts up for me, which was really valuable.
 ---------------
 Works sampled / some lines of code pulled from:
 
-https://rickyhan.com/jekyll/update/2018/02/06/rust-guitar-pedal-effects-dsp.html
-http://siciarz.net/24-days-rust-hound/
+https://rickyhan.com/jekyll/update/2018/02/06/rust-guitar-pedal-effects-dsp.html  
+http://siciarz.net/24-days-rust-hound/  
 
 ---------------
 Special thanks to Christopher Clark and the EPL for their help with the hardware end of this project.

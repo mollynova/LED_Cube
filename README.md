@@ -5,17 +5,22 @@ OVERVIEW:
 
 Raspberry Pi B+ Raver Cube
 
-For my project, I'm building a 4x4x4 LED cube with gradient colors. Each layer of the cube will have 4 sets of 4 LED
-lights soldered together. Each set will be uniquely addressable (16 unique addresses). The cube will be connected via
-ribbon cable to raspberry pi B+ GPIO pins.
+For my project, I built a 4x4x4 LED cube with gradient colors. Each layer of the cube has 4 sets of 4 LED
+lights soldered together. Each set will be uniquely addressable (16 unique addresses). The cube connects via
+gpio wires to raspberry pi B+ GPIO pins.
 
-The raspberry pi will be running software which takes a wav file as input and transforms it into a vector of samples.
-This vector of samples will be subdivided into a vector of vectors of samples, each of which has approximately one second
+The raspberry pi runs software I wrote which takes a .wav file as input and transforms it into a vector of samples.
+This vector of samples gets subdivided into a vector of vectors of samples, each of which has approximately one second
 of music's worth of samples, based on the length of the song.
 
 I use RustFFT to perform a fast fourier transform (FFT) on each chunk of samples, deconstructing the sine wave into the
-individual tones it is comprised of. I select the highest of these tones, and turn on the appropriate colored lights on
+individual tones it is composed of. I select the highest of these tones, and turn on the appropriate colored lights on
 the cube. Lowest tones are red, low-middle are yellow, middle-high are green, and high are blue.
+
+I have the lights move in a gradient-type pattern from one end of the cube to the other. Since I have 4 layers in
+the cube, and each FFT is on one second's worth of samples, I have each layer turn on one after another for 0.25 seconds.
+
+The overall effect is a kind of "light show" based on the frequency of the song.
 
 ----------
 SOFTWARE:
@@ -80,6 +85,41 @@ connected the middle transistor pin on a single row of lights to a GPIO pin on m
 that would use rppal syntax to set that particular GPIO pin to "output" mode, and turn on the lights.
 
 Once I'd gotten the algorithm working and the lights triggering correctly, everything else was basically just repetition.
+
+---------------
+"WHAT DOESN'T WORK/LESSONS LEARNED"
+
+Everything works as intended. I tested my program out when the cube was still on the bread board and it worked as expected.
+I tested all of the LEDs to make sure that none of them were burnt out. I'm still not completely finished (as of Friday 6/7)
+with the hardware, but I will have it done by the end of the weekend.
+
+I learned a lot of lessons with this project, the main one probably being: if you know virtually nothing about hardware,
+building an LED cube will take a lot longer than you think it will.
+
+I tried out a lot of different ideas as far as how best to connect the lights and make the whole thing basically symmetrical.
+I ended up using some copper tubing for the outline of the cube, which looks cool, but if I could go back I probably would
+have skipped that step and just used bare wire for the whole thing, because it took a long time to put together and it's much
+more difficult to solder thick copper than regular wire since you have to get it so hot. I learned a neat trick on youtube
+for making wire stiff to use it structurally- you cut a piece of wire, insert it into a drill like a bit, hold the other end
+with plyers, and run the drill for a bit. It twists it right up and you end up with a rigid piece of wire. That's how I made
+the internal structure of the cube.
+
+One thing that took a lot more time than I expected was all the soldering. I initially soldered all of my LEDs into chains of
+four by connecting anode directly to cathode, and I didn't realize that a lot of the LEDs I picked up at the EPL had different
+lengths of anode and cathode (I think some of them come from different sources) so my chains ended up being different sizes
+and I had to go back and redo most of them (I should have noticed that).
+
+I learned a lot about how modules work in Rust with this project, and it was good experience looking around for different crates
+that might be useful and cloning them, and figuring out how to edit my dependencies in Cargo.toml to get everything working.
+I also solidified some error checking concepts while doing my testing. Rust's Result type reminds me a lot of Haskell, and for
+the most part I think it's intuitive.
+
+I re-learned that I should map out a project better ahead of time instead of trying to dissect it once the majority of it is
+working. Karla, I am sorry.
+
+I also learned a lot more about FFTs. There's definitely a difference between watching a youtube video and listening about it
+in class versus actually having to get it working. I think this part of the project was really useful because it cleared a
+lot of the concepts up for me, which was really valuable.
 
 ---------------
 Works sampled / some lines of code pulled from:

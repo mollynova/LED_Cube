@@ -6,11 +6,15 @@ use hound;
 mod hardware;
 
 use rppal::gpio::Gpio;
-use std::error::Error;
 use num::complex::Complex;
 use rustfft::FFT;
 use self::rustfft::FFTplanner;
 use self::rustfft::num_traits::Zero;
+use std::error::Error;
+use std::thread;
+use std::fs::File;
+use std::io::BufReader;
+use rodio::source;
 
 // a test to make sure rppal is working properly
 #[test]
@@ -32,9 +36,18 @@ fn test_rppal() -> Result <(), Box<dyn Error>> {
 }
 
 fn main()  {
+  // make vec to hold ordering of lights -- the raspi doesn't process things too quick, so it would make the lights laggy.
+  // I'm handling that by having it do all of the calculations (FFTs) first, push the results to a vec, and then run the lights
+  let mut lights = Vec::new();
+
+  // create device to play back song while lights are going
+  let device = rodio::default_output_device().unwrap();
+  let file = File::open("wav_files/ImIntoYou.wav").unwrap();
+  let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
+
   // initialize hardware
   let pinout: hardware::Pinout = init_pinout();
-  if let Ok(mut gpio)  = init_gpio(&pinout) {
+  if let Ok(gpio)  = init_gpio(&pinout) {
   // I created the instance of GPIO in main() because the .get() method of Gpio
   // returns a Result, so if I did this in a separate function, I'd have to return
   // a result and wouldn't be able to return the GPIO itself
@@ -75,21 +88,42 @@ fn main()  {
       // based on the result of pick_color, call the gpio struct's impl function for lighting
       // up the correct color(s)
         match color {
-          0 => gpio.red_on(),
-          1 => gpio.ry_on(),
-          2 => gpio.yellow_on(),
-          3 => gpio.yg_on(),
-          4 => gpio.green_on(),
-          5 => gpio.gb_on(),
-          _ => gpio.blue_on(),
+          0 => /*gpio.red_on()*/ lights.push(0),
+          1 => /*gpio.ry_on()*/  lights.push(1),
+          2 => /*gpio.yellow_on()*/ lights.push(2),
+          3 => /*gpio.yg_on()*/ lights.push(3),
+          4 => /*gpio.green_on()*/ lights.push(4),
+          5 => /*gpio.gb_on()*/ lights.push(5),
+          _ => /*gpio.blue_on()*/ lights.push(6),
         }
       }
     }
+    // make a new thread to start actually playing the song, because otherwise the entire song is going to
+    // play and THEN the lights will start going on. we want them to happen at the same time
+    thread::spawn(move || {
+      rodio::play_raw(&device, source.convert_samples());
+    });
+
+    run_lights(gpio, lights);
   }
   else {
     println!("Error setting BCM pins. Please check the following:");
     println!("  --Pinout is set to Raspi 3 B+ BCM pinout numbering");
     println!("  --LED cube is connected to Raspi");
+  }
+}
+
+fn run_lights(mut gpio: hardware::GPIO, lights: Vec<u8>) {
+  for light in lights {
+    match light {
+      0 => gpio.red_on(),
+      1 => gpio.ry_on(),
+      2 => gpio.yellow_on(),
+      3 => gpio.yg_on(),
+      4 => gpio.green_on(),
+      5 => gpio.gb_on(),
+      _ => gpio.blue_on(),
+    }
   }
 }
 
@@ -103,9 +137,9 @@ fn main()  {
 */
 fn init_pinout() -> hardware::Pinout {
   let pinout: hardware::Pinout = hardware::Pinout { r1_GPIO :  2, r2_GPIO :  3, r3_GPIO :  4, r4_GPIO : 17,
-                                y1_GPIO : 27, y2_GPIO : 22, y3_GPIO : 10, y4_GPIO :  9,
-                                g1_GPIO :  5, g2_GPIO :  6, g3_GPIO : 13, g4_GPIO : 19,
-                                b1_GPIO : 12, b2_GPIO : 16, b3_GPIO : 20, b4_GPIO : 21 } ;
+                                                    y1_GPIO : 27, y2_GPIO : 22, y3_GPIO : 10, y4_GPIO :  9,
+                                                    g1_GPIO :  5, g2_GPIO :  6, g3_GPIO : 13, g4_GPIO : 19,
+                                                    b1_GPIO : 12, b2_GPIO : 16, b3_GPIO : 20, b4_GPIO : 21 } ;
 
   pinout
 }
@@ -115,21 +149,21 @@ fn init_pinout() -> hardware::Pinout {
 // each of them to output mode.
 fn init_gpio(pinout: &hardware::Pinout) -> Result <hardware::GPIO, Box<dyn Error>> {
   let gpio = hardware::GPIO { r1_gpio: Gpio::new()?.get(pinout.r1_GPIO)?.into_output(),
-                    r2_gpio: Gpio::new()?.get(pinout.r2_GPIO)?.into_output(),
-                    r3_gpio: Gpio::new()?.get(pinout.r3_GPIO)?.into_output(),
-                    r4_gpio: Gpio::new()?.get(pinout.r4_GPIO)?.into_output(),
-                    y1_gpio: Gpio::new()?.get(pinout.y1_GPIO)?.into_output(),
-                    y2_gpio: Gpio::new()?.get(pinout.y2_GPIO)?.into_output(),
-                    y3_gpio: Gpio::new()?.get(pinout.y3_GPIO)?.into_output(),
-                    y4_gpio: Gpio::new()?.get(pinout.y4_GPIO)?.into_output(),
-                    g1_gpio: Gpio::new()?.get(pinout.g1_GPIO)?.into_output(),
-                    g2_gpio: Gpio::new()?.get(pinout.g2_GPIO)?.into_output(),
-                    g3_gpio: Gpio::new()?.get(pinout.g3_GPIO)?.into_output(),
-                    g4_gpio: Gpio::new()?.get(pinout.g4_GPIO)?.into_output(),
-                    b1_gpio: Gpio::new()?.get(pinout.b1_GPIO)?.into_output(),
-                    b2_gpio: Gpio::new()?.get(pinout.b2_GPIO)?.into_output(),
-                    b3_gpio: Gpio::new()?.get(pinout.b3_GPIO)?.into_output(),
-                    b4_gpio: Gpio::new()?.get(pinout.b4_GPIO)?.into_output() };
+                              r2_gpio: Gpio::new()?.get(pinout.r2_GPIO)?.into_output(),
+                              r3_gpio: Gpio::new()?.get(pinout.r3_GPIO)?.into_output(),
+                              r4_gpio: Gpio::new()?.get(pinout.r4_GPIO)?.into_output(),
+                              y1_gpio: Gpio::new()?.get(pinout.y1_GPIO)?.into_output(),
+                              y2_gpio: Gpio::new()?.get(pinout.y2_GPIO)?.into_output(),
+                              y3_gpio: Gpio::new()?.get(pinout.y3_GPIO)?.into_output(),
+                              y4_gpio: Gpio::new()?.get(pinout.y4_GPIO)?.into_output(),
+                              g1_gpio: Gpio::new()?.get(pinout.g1_GPIO)?.into_output(),
+                              g2_gpio: Gpio::new()?.get(pinout.g2_GPIO)?.into_output(),
+                              g3_gpio: Gpio::new()?.get(pinout.g3_GPIO)?.into_output(),
+                              g4_gpio: Gpio::new()?.get(pinout.g4_GPIO)?.into_output(),
+                              b1_gpio: Gpio::new()?.get(pinout.b1_GPIO)?.into_output(),
+                              b2_gpio: Gpio::new()?.get(pinout.b2_GPIO)?.into_output(),
+                              b3_gpio: Gpio::new()?.get(pinout.b3_GPIO)?.into_output(),
+                              b4_gpio: Gpio::new()?.get(pinout.b4_GPIO)?.into_output() };
   Ok(gpio)
 }
 

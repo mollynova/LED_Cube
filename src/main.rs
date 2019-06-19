@@ -2,7 +2,6 @@ extern crate num;
 extern crate rustfft;
 extern crate rppal;
 use hound;
-//use std::time::Duration;
 mod hardware;
 
 use rppal::gpio::Gpio;
@@ -53,6 +52,7 @@ fn main()  {
   // a result and wouldn't be able to return the GPIO itself
 
   // use 'hound' crate to read in a given .wav file
+/*
     let mut reader = hound::WavReader::open("wav_files/ImIntoYou.wav").unwrap();
 
   // build complex vector of samples in preparation for FFTs
@@ -105,6 +105,8 @@ fn main()  {
     });
 
     run_lights(gpio, lights);
+*/
+    gpio.all_on();
   }
   else {
     println!("Error setting BCM pins. Please check the following:");

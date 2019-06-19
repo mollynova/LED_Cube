@@ -28,6 +28,25 @@ pub struct GPIO {
 }
 
 impl GPIO {
+  pub fn all_on(&mut self){
+    self.r1_gpio.set_high();
+    self.r2_gpio.set_high();
+    self.r3_gpio.set_high();
+    self.r4_gpio.set_high();
+    self.y1_gpio.set_high();
+    self.y2_gpio.set_high();
+    self.y3_gpio.set_high();
+    self.y4_gpio.set_high();
+    self.g1_gpio.set_high();
+    self.g2_gpio.set_high();
+    self.g3_gpio.set_high();
+    self.g4_gpio.set_high();
+    self.b1_gpio.set_high();
+    self.b2_gpio.set_high();
+    self.b3_gpio.set_high();
+    self.b4_gpio.set_high();
+  }
+
   pub fn red_on(&mut self) {
     self.r1_gpio.set_high();
     thread::sleep(Duration::from_millis(250));

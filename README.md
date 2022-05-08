@@ -1,9 +1,9 @@
-Raspberry Pi Raver Cube
+Raspberry Pi LED Cube
 Author: Molly Novash
 
 OVERVIEW:
 
-Raspberry Pi B+ Raver Cube
+Raspberry Pi B+ LED Cube
 
 For my project, I built a 4x4x4 LED cube with gradient colors. Each layer of the cube has 4 sets of 4 LED
 lights soldered together. Each set will be uniquely addressable (16 unique addresses). The cube connects via
